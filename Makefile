@@ -88,7 +88,10 @@ next_dev_cycle:
 
 install: build
 	cp clinote ~/bin
-
+	chmod +x ~/bin/clinote
+	cp scripts/evernote-local-directory-sync.sh ~/bin
+	chmod +x ~/bin/evernote-local-directory-sync.sh
+	
 .PHONY: no_targets__ list
 no_targets__:
 list:
