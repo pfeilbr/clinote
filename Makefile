@@ -86,6 +86,9 @@ next_dev_cycle:
 	git add $(VERSION_FILE) && git commit -m "Set next dev cycle version"
 	rm -rf vendor/ && git add vendor/ && git commit -m "Remove vendors"
 
+install: build
+	cp clinote ~/bin
+
 .PHONY: no_targets__ list
 no_targets__:
 list:
