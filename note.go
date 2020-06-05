@@ -25,6 +25,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/ioutil"
+	"os"
 	"strconv"
 	"strings"
 
@@ -72,6 +74,8 @@ const (
 	// UseRecoveryPointNote should be used to signal that the user wants to
 	// reopen the note that the note store failed to save.
 	UseRecoveryPointNote
+	// StdinNote will read note contents from stdin
+	StdinNote
 )
 
 // Note is the structure of an Evernote note.
@@ -317,6 +321,7 @@ func CreateAndEditNewNote(client *Client, note *Note, opts NoteOption) error {
 	if err != nil {
 		return err
 	}
+
 	defer cacheFile.CloseAndRemove()
 	err = parseNote(cacheFile, note, opts)
 	if err != nil {
@@ -381,6 +386,12 @@ func editNote(client *Client, note *Note, opts NoteOption) (CacheFile, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	if opts&StdinNote != 0 {
+		bytes, _ := ioutil.ReadAll(os.Stdin)
+		note.MD = string(bytes)
+	}
+
 	err = WriteNote(cacheFile, note, opts)
 	if err != nil {
 		return nil, err
@@ -392,9 +403,12 @@ func editNote(client *Client, note *Note, opts NoteOption) (CacheFile, error) {
 	if err != nil {
 		return nil, err
 	}
-	err = client.Edit(cacheFile)
-	if err != nil {
-		return nil, err
+
+	if opts&StdinNote == 0 {
+		err = client.Edit(cacheFile)
+		if err != nil {
+			return nil, err
+		}
 	}
 	err = cacheFile.ReOpen()
 	if err != nil {

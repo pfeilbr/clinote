@@ -60,7 +60,13 @@ flag.`,
 			fmt.Println("Error when parsing raw parameter:", err)
 			return
 		}
-		createNote(title, notebook, edit, raw)
+		stdin, err := cmd.Flags().GetBool("stdin")
+		if err != nil {
+			fmt.Println("Error when parsing stdin parameter:", err)
+			return
+		}
+
+		createNote(title, notebook, edit, raw, stdin)
 	},
 }
 
@@ -70,9 +76,10 @@ func init() {
 	newNoteCmd.Flags().StringP("notebook", "b", "", "The notebook to save note to, if not set the default notebook will be used.")
 	newNoteCmd.Flags().BoolP("edit", "e", false, "Open note in the editor.")
 	newNoteCmd.Flags().Bool("raw", false, "Edit the content in raw mode.")
+	newNoteCmd.Flags().Bool("stdin", false, "Read content from stdin.")
 }
 
-func createNote(title, notebook string, edit, raw bool) {
+func createNote(title, notebook string, edit, raw bool, stdin bool) {
 	c := newClient(clinote.DefaultClientOptions)
 	defer c.Store.Close()
 
@@ -94,6 +101,10 @@ func createNote(title, notebook string, edit, raw bool) {
 	if raw {
 		opts |= clinote.RawNote
 	}
+	if stdin {
+		opts |= clinote.StdinNote
+	}
+
 	if edit {
 		if err := clinote.CreateAndEditNewNote(c, note, opts); err != nil {
 			fmt.Println("Error when editing the note:", err)
