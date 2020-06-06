@@ -91,6 +91,16 @@ install: build
 	chmod +x ~/bin/clinote
 	cp scripts/evernote-local-directory-sync.sh ~/bin
 	chmod +x ~/bin/evernote-local-directory-sync.sh
+
+run: install
+	evernote-local-directory-sync.sh 2>&1 | tee -a /Users/pfeilbr/.evernote-local-directory-sync/logs/output.log
+
+clean_local_config:
+	rm -fr /Users/pfeilbr/.evernote-local-directory-sync
+	mkdir -p /Users/pfeilbr/.evernote-local-directory-sync/logs
+
+clean_and_run: clean_local_config run
+	
 	
 .PHONY: no_targets__ list
 no_targets__:

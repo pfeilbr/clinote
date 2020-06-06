@@ -74,20 +74,24 @@ function create_or_update_note_from_file {
 
     new_note_cmd="cat \"${file_path}\" | ${CLI_PATH} note new --title \"${file_name}\" --stdin --edit"
     echo "creating note from \""${file_path}\"""
-    eval "${new_note_cmd}"
+    output=$(eval "${new_note_cmd}")
+    echo "${output}" | grep -i "EDAMUserException"
     exit_status=$?
     if [ $exit_status -ne 0 ]; then
-        echo "failed to create new note for file: ${file_path}"
-        echo "${new_note_cmd}"
-    else
         # success - create local file contents hash
         create_local_file_contents_hash "${file_path}"
-    fi    
+    else
+        echo "failed to create new note for file: ${file_path}"
+        echo "${output}"
+        #echo "${new_note_cmd}"
+    fi
+    sleep 3
 }
 
 for file_path in $SOURCE_FILES
 do
     create_or_update_note_from_file "${file_path}"
+    echo -e "\n"
 done
 
 
