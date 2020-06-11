@@ -390,6 +390,7 @@ func editNote(client *Client, note *Note, opts NoteOption) (CacheFile, error) {
 	if opts&StdinNote != 0 {
 		bytes, _ := ioutil.ReadAll(os.Stdin)
 		note.MD = string(bytes)
+		note.Body = string(bytes)
 	}
 
 	err = WriteNote(cacheFile, note, opts)

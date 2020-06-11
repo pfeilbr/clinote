@@ -128,6 +128,7 @@ function create_or_update_note_from_file {
     fi
 
     new_note_cmd="cat \"${file_path}\" | ${CLI_PATH} note new --title \"${file_name}\" --stdin --edit"
+    new_note_raw_cmd="cat \"${file_path}\" | ${CLI_PATH} note new --title \"${file_name}\" --stdin --edit --raw"
     echo "creating note from \""${file_path}\"""
     output=$(eval "${new_note_cmd}")
     if contains_string "${output}" "EDAMUserException"; then
@@ -136,7 +137,14 @@ function create_or_update_note_from_file {
 
         if contains_string "${output}" "ENML_VALIDATION"; then
             echo "XML Validation Error"
-            set_validation_error_file_flag "${file_path}"
+            # attempt to import raw (no markdown to html conversion)
+            output=$(eval "${new_note_raw_cmd}")
+            if contains_string "${output}" "EDAMUserException"; then
+                set_validation_error_file_flag "${file_path}"
+            else
+                # success - create local file contents hash
+                create_local_file_contents_hash "${file_path}"
+            fi
         fi
     else
         # success - create local file contents hash
