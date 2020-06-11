@@ -14,11 +14,26 @@ LOG_DIRECTORY="${CONFIG_DIRECTORY}/logs"
 CONTENT_HASH_DIRECTORY="${CONFIG_DIRECTORY}/content-hashes"
 [ -d "${CONTENT_HASH_DIRECTORY}" ] || mkdir -p "${CONTENT_HASH_DIRECTORY}"
 
+VALIDATION_ERRORS_DIRECTORY="${CONFIG_DIRECTORY}/validation-errors"
+[ -d "${VALIDATION_ERRORS_DIRECTORY}" ] || mkdir -p "${VALIDATION_ERRORS_DIRECTORY}"
+
+
 SOURCE_DIRECTORY=~/Dropbox/notes
 DEFAULT_NOTEBOOK_NAME="Inbox"
 #SOURCE_FILES="${SOURCE_DIRECTORY}/2014-05*.md"
 SOURCE_FILES="${SOURCE_DIRECTORY}/*.md"
 CLI_PATH=clinote
+
+function contains_string {
+    source_string=$1
+    search_string=$2
+
+    if grep -q "$search_string" <<< "$source_string"; then
+        return 0
+    else
+        return 1
+    fi
+}
 
 function note_exists_on_server {
     note_title=$1
@@ -35,16 +50,57 @@ function file_contents_changed {
     file_path=$1
     file_name=$(basename "$file_path")    
     last_hash_file_path="${CONTENT_HASH_DIRECTORY}/${file_name}.md5"
-    ret="true"
+    ret=0
     if [ -f "${last_hash_file_path}" ]; then
         last_hash=$(cat "${last_hash_file_path}")
         current_hash=$(md5 -q "${file_path}")
 
         if [ "${last_hash}" = "${current_hash}" ]; then
-            ret="false"
+            ret=1
         fi
     fi
-    echo $ret
+    return $ret
+}
+
+function get_validation_error_file_flag_path {
+    file_path=$1
+    file_name=$(basename "$file_path")
+    echo "${VALIDATION_ERRORS_DIRECTORY}/${file_name}"
+}
+
+function set_validation_error_file_flag {
+    file_path=$1
+    validation_error_file_flag_path=$(get_validation_error_file_flag_path "${file_path}")
+    cp "${file_path}" "${validation_error_file_flag_path}"
+}
+
+function has_validation_errors {
+    file_path=$1
+    file_name=$(basename "$file_path")
+    ret=1
+
+    validation_error_file_flag_path=$(get_validation_error_file_flag_path "${file_path}")
+
+    if [ -f "${validation_error_file_flag_path}" ]; then
+        ret=0
+    fi
+
+    return $ret
+}
+
+function should_process_file {
+    file_path="$1"
+    file_name=$(basename "$file_path")    
+
+    if has_validation_errors "${file_path}"; then
+        return 1
+    fi
+
+    if file_contents_changed "${file_path}"; then
+        return 0
+    fi
+    
+    return 1
 }
 
 function create_local_file_contents_hash {
@@ -58,9 +114,8 @@ function create_or_update_note_from_file {
     file_path=$1
     file_name=$(basename "$file_path")    
 
-    changed=$(file_contents_changed "${file_path}")
-    if [ "${changed}" == "false" ]; then
-        echo "no change: ${file_path}"
+    if ! should_process_file "${file_path}"; then
+        echo "not processing: ${file_path}"
         return 0
     fi
 
@@ -75,15 +130,17 @@ function create_or_update_note_from_file {
     new_note_cmd="cat \"${file_path}\" | ${CLI_PATH} note new --title \"${file_name}\" --stdin --edit"
     echo "creating note from \""${file_path}\"""
     output=$(eval "${new_note_cmd}")
-    echo "${output}" | grep -i "EDAMUserException"
-    exit_status=$?
-    if [ $exit_status -ne 0 ]; then
-        # success - create local file contents hash
-        create_local_file_contents_hash "${file_path}"
-    else
+    if contains_string "${output}" "EDAMUserException"; then
         echo "failed to create new note for file: ${file_path}"
         echo "${output}"
-        #echo "${new_note_cmd}"
+
+        if contains_string "${output}" "ENML_VALIDATION"; then
+            echo "XML Validation Error"
+            set_validation_error_file_flag "${file_path}"
+        fi
+    else
+        # success - create local file contents hash
+        create_local_file_contents_hash "${file_path}"
     fi
     sleep 3
 }
