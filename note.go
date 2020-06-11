@@ -24,6 +24,7 @@ import (
 	"encoding/xml"
 	"errors"
 	"fmt"
+	"html"
 	"io"
 	"io/ioutil"
 	"os"
@@ -252,7 +253,7 @@ func SaveNewNote(ns NotestoreClient, n *Note, raw bool) error {
 	if !raw && n.MD != "" {
 		body = toXML(n.MD)
 	} else if raw {
-		body = fmt.Sprintf("%s<en-note>%s</en-note>", XMLHeader, n.Body)
+		body = fmt.Sprintf("%s<en-note><pre><code>%s</code></pre></en-note>", XMLHeader, html.EscapeString(n.Body))
 	} else {
 		body = XMLHeader + "<en-note></en-note>"
 	}
@@ -469,7 +470,8 @@ func parseContent(scanner *bufio.Scanner, n *Note, opts NoteOption) error {
 		return err
 	}
 	if opts&RawNote != 0 {
-		n.Body = strings.Trim(buf.String(), "\n")
+		//n.Body = strings.Trim(buf.String(), "\n")
+		n.Body = buf.String()
 	} else {
 		n.MD = strings.Trim(buf.String(), "\n")
 	}
